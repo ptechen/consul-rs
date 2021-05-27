@@ -3,7 +3,12 @@ name = "consul_api"
 version = "0.1.0"
 authors = ["taochen"]
 edition = "2018"
-
+homepage = "https://github.com/ptechen"
+documentation = "https://github.com/ptechen/consul_api/blob/main/README.md"
+repository = "https://github.com/ptechen/consul_api.git"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+description = "consul api"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
