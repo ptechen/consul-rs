@@ -1,0 +1,17 @@
+[package]
+name = "consul_api"
+version = "0.1.0"
+authors = ["taochen"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-std = "1.9.0"
+http-types = "2.11.1"
+lazy_static = "1.4.0"
+regex = "1.5.4"
+serde = "1.0.126"
+serde_derive = "1.0.126"
+serde_json = "1.0.64"
+surf = "2.2.0"
