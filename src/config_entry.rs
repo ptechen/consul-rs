@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use async_std::sync::Arc;
 use serde_derive::{Serialize, Deserialize};
 pub type ProxyMode = String;
 
@@ -7,20 +6,20 @@ lazy_static!(
     /// ProxyModeDefault represents no specific mode and should
 	/// be used to indicate that a different layer of the configuration
 	/// chain should take precedence
-    pub static ref PROXY_MODE_DEFAULT: Arc<ProxyMode> = {
-        Arc::new(String::new())
+    pub static ref PROXY_MODE_DEFAULT: ProxyMode = {
+        String::new()
     };
 
     /// ProxyModeTransparent represents that inbound and outbound application
 	/// traffic is being captured and redirected through the proxy.
-    pub static ref PROXY_MODE_TRANSPARENT: Arc<ProxyMode> = {
-        Arc::new(String::from("transparent"))
+    pub static ref PROXY_MODE_TRANSPARENT: ProxyMode = {
+        String::from("transparent")
     };
 
     /// ProxyModeDirect represents that the proxy's listeners must be dialed directly
 	/// by the local application and other proxies.
-    pub static ref PROXY_MODE_DIRECT: Arc<ProxyMode> = {
-        Arc::new(String::from("direct"))
+    pub static ref PROXY_MODE_DIRECT: ProxyMode = {
+        String::from("direct")
     };
 );
 
@@ -30,26 +29,26 @@ lazy_static!(
     /// MeshGatewayModeDefault represents no specific mode and should
     /// be used to indicate that a different layer of the configuration
     /// chain should take precedence
-    pub static ref MESH_GATEWAY_MODE_DEFAULT: Arc<MeshGatewayMode> = {
-        Arc::new(String::new())
+    pub static ref MESH_GATEWAY_MODE_DEFAULT: MeshGatewayMode = {
+        String::new()
     };
 
     /// MeshGatewayModeNone represents that the Upstream Connect connections
     /// should be direct and not flow through a mesh gateway.
-    pub static ref MESH_GATEWAY_MODE_NONE: Arc<MeshGatewayMode> = {
-        Arc::new(String::from("none")) 
+    pub static ref MESH_GATEWAY_MODE_NONE: MeshGatewayMode = {
+        String::from("none")
     };
 
     /// MeshGatewayModeLocal represents that the Upstream Connect connections
     /// should be made to a mesh gateway in the local datacenter.
-    pub static ref MESH_GATEWAY_MODE_LOCAL: Arc<MeshGatewayMode> = {
-        Arc::new(String::from("local"))
+    pub static ref MESH_GATEWAY_MODE_LOCAL: MeshGatewayMode = {
+        String::from("local")
     };
 
     /// MeshGatewayModeRemote represents that the Upstream Connect connections
     /// should be made to a mesh gateway in a remote datacenter.
-    pub static ref MESH_GATEWAY_MODE_REMOTE: Arc<MeshGatewayMode> = {
-        Arc::new(String::from("remote"))
+    pub static ref MESH_GATEWAY_MODE_REMOTE: MeshGatewayMode = {
+        String::from("remote")
     };
 );
 

@@ -574,9 +574,9 @@ impl Agent {
     ///
     /// ```
     /// use async_std::task::block_on;
-    /// use consul_api;
-    /// let mut c = consul_api::api::Client::default();
-    /// c.config = consul_api::api::Config::new("http://0.0.0.0:8500");
+    /// use consul_rs;
+    /// let mut c = consul_rs::api::Client::default();
+    /// c.config = consul_rs::api::Config::new("http://0.0.0.0:8500");
     /// let agent = block_on(c.agent());
     /// let res = block_on(agent.checks()).unwrap();
     /// println!("{:?}",res);
@@ -623,9 +623,9 @@ impl Agent {
     ///
     /// ```
     /// use async_std::task::block_on;
-    /// use consul_api;
-    /// let mut c = consul_api::api::Client::default();
-    /// c.config = consul_api::api::Config::new("http://0.0.0.0:8500");
+    /// use consul_rs;
+    /// let mut c = consul_rs::api::Client::default();
+    /// c.config = consul_rs::api::Config::new("http://0.0.0.0:8500");
     /// let agent = block_on(c.agent());
     /// let res = block_on(agent.services()).unwrap();
     /// println!("{:?}", res);
@@ -667,15 +667,15 @@ impl Agent {
     ///
     /// ```
     /// use async_std::task::block_on;
-    /// use consul_api;
-    /// let mut c = consul_api::api::Client::default();
-    /// c.config = consul_api::api::Config::new("http://0.0.0.0:8500");
-    /// let mut service = consul_api::agent::AgentServiceRegistration::default();
+    /// use consul_rs;
+    /// let mut c = consul_rs::api::Client::default();
+    /// c.config = consul_rs::api::Config::new("http://0.0.0.0:8500");
+    /// let mut service = consul_rs::agent::AgentServiceRegistration::default();
     /// service.ID = Some("10".to_string());
     /// service.Name = Some("test".to_string());
     /// service.Address = Some("tttt".to_string());
     /// service.Port = Some(8080);
-    /// let mut opts = consul_api::agent::ServiceRegisterOpts::default();
+    /// let mut opts = consul_rs::agent::ServiceRegisterOpts::default();
     /// opts.ReplaceExistingChecks = true;
     /// let agent = block_on(c.agent());
     /// let status_code = block_on(agent.service_register_opts(service, opts)).unwrap();
@@ -691,16 +691,16 @@ impl Agent {
     /// the local agent and can be passed additional options.
     /// ```
     /// use async_std::task::block_on;
-    /// use consul_api;
-    /// let mut c = consul_api::api::Client::default();
-    /// let mut config = consul_api::api::Config::default();
-    /// c.config = consul_api::api::Config::new("http://0.0.0.0:8500");
-    /// let mut service = consul_api::agent::AgentServiceRegistration::default();
+    /// use consul_rs;
+    /// let mut c = consul_rs::api::Client::default();
+    /// let mut config = consul_rs::api::Config::default();
+    /// c.config = consul_rs::api::Config::new("http://0.0.0.0:8500");
+    /// let mut service = consul_rs::agent::AgentServiceRegistration::default();
     /// service.ID = Some("10".to_string());
     /// service.Name = Some("test".to_string());
     /// service.Address = Some("tttt".to_string());
     /// service.Port = Some(8080);
-    /// let mut opts = consul_api::agent::ServiceRegisterOpts::default();
+    /// let mut opts = consul_rs::agent::ServiceRegisterOpts::default();
     /// opts.ReplaceExistingChecks = true;
     /// let agent = block_on(c.agent());
     /// let status_code = block_on(agent.service_register_opts(service, opts)).unwrap();
@@ -734,7 +734,7 @@ impl Agent {
     ///
     /// ```
     /// use async_std::task::block_on;
-    /// use consul_api::api;
+    /// use consul_rs::api;
     /// let mut c = api::Client::default();
     /// c.config = api::Config::new("http://0.0.0.0:8500");
     /// let agent = block_on(c.agent());
@@ -759,7 +759,7 @@ impl Agent {
     ///
     /// ```
     /// use async_std::task::block_on;
-    /// use consul_api::api;;
+    /// use consul_rs::api;;
     /// let mut c = api::Client::default();
     /// c.config = api::Config::new("http://0.0.0.0:8500");
     /// let agent = block_on(c.agent());
