@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 use regex::Regex;
 use async_std::sync::Arc;
+use surf::http::Method;
+use surf::{Error, StatusCode};
 use super::catalog;
 use super::api;
 use super::agent;
@@ -89,7 +91,7 @@ type ReadableDuration = Duration;
 #[allow(non_snake_case)]
 pub struct HealthCheckDefinition {
     pub HTTP: Option<String>,
-    pub Header: HashMap<String, Vec<String>>,
+    pub Header: Option<HashMap<String, Vec<String>>>,
     pub Method: Option<String>,
     pub Body: Option<String>,
     pub TLSServerName: Option<String>,
@@ -160,7 +162,7 @@ impl HealthChecks {
             let s = &*HEALTH_CRITICAL.clone();
             s.into()
         } else if warning {
-            let s= &*HEALTH_WARNING.clone();
+            let s = &*HEALTH_WARNING.clone();
             s.into()
         } else if passing {
             let s = &*HEALTH_PASSING.clone();
@@ -175,20 +177,159 @@ impl HealthChecks {
 /// ServiceEntry is used for the health service endpoint
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct ServiceEntry  {
+pub struct ServiceEntry {
     pub Node: Option<catalog::Node>,
     pub Service: Option<agent::AgentService>,
-    pub Checks:  Option<HealthChecks>
+    pub Checks: Option<HealthChecks>,
 }
 
 // Health can be used to query the Health endpoints
 #[derive(Default, Debug)]
-struct Health {
-    c: api::Client,
+pub struct Health {
+    pub c: Option<api::Client>,
 }
 
-#[test]
-fn test() {
-    let s = Duration::new(1234,1234);
-    println!("{:?}", s)
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct Tag {
+    pub tag: String,
 }
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct Passing {
+    pub passing: String,
+}
+
+impl Health {
+    pub async fn service(&self, service: &str, tag: &str, passing_only: bool, q: Option<api::QueryOptions>)
+                         -> surf::Result<Vec<ServiceEntry>> {
+        let mut tags = vec![];
+        if tag != "" {
+            tags.push(tag);
+        }
+        self.service_private(service, tags, passing_only, q, &CONNECT_HEALTH).await
+    }
+
+    async fn service_private(&self, service: &str, tags: Vec<&str>, passing_only: bool, q: Option<api::QueryOptions>, health_type: &str)
+                             -> surf::Result<Vec<ServiceEntry>> {
+        let path;
+        match health_type {
+            "service" => {
+                path = format!("/v1/health/connect/{}", service)
+            }
+            "ingress" => {
+                path = format!("/v1/health/ingress/{}", service)
+            }
+            _ => {
+                path = format!("/v1/health/service/{}", service)
+            }
+        }
+        if self.c.is_some() {
+            let client = self.c.unwrap();
+            let mut req = client.new_request(Method::Get, path).await?;
+            if q.is_some() {
+                let opts = q.unwrap();
+                req.set_query(&opts)?;
+            }
+
+            if tags.len() > 0 {
+                for tag in tags.iter() {
+                    let cur_tag = Tag { tag: tag.to_string() };
+                    req.set_query(&cur_tag)?;
+                }
+            }
+            if passing_only {
+                let query = Passing { passing: String::from("1") };
+                req.set_query(&query)?;
+            };
+            let client = surf::Client::new();
+            let mut res = client.send(req).await?;
+            let out: Vec<ServiceEntry> = res.body_json().await?;
+            Ok(out)
+        } else {
+            Err(Error::from_str(StatusCode::BadRequest, "client init err"))
+        }
+    }
+
+    pub async fn service_address(&self, service: &str, tag: &str, passing_only: bool, q: Option<api::QueryOptions>)
+                                 -> surf::Result<Vec<String>> {
+        let entry = self.service(service, tag, passing_only, q).await?;
+        let mut service_addresses = vec![];
+        for val in entry.iter() {
+            if val.Service.is_some() {
+                let v = val.Service.as_ref().unwrap();
+                if v.Address.is_some() && v.Port.is_some() {
+                    let address = v.Address.as_ref().unwrap();
+                    let port = v.Port.as_ref().unwrap();
+                    let address = format!("{}:{}", address, port);
+                    service_addresses.push(address);
+                };
+            };
+        };
+        Ok(service_addresses)
+    }
+}
+
+/// QueryMeta is used to return meta data about a query
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
+pub struct QueryMeta {
+    // LastIndex. This can be used as a WaitIndex to perform
+    // a blocking query
+    pub LastIndex: Option<u64>,
+
+    // LastContentHash. This can be used as a WaitHash to perform a blocking query
+    // for endpoints that support hash-based blocking. Endpoints that do not
+    // support it will return an empty hash.
+    pub LastContentHash: Option<String>,
+
+    // Time of last contact from the leader for the
+    // server servicing the request
+    pub LastContact: Option<Duration>,
+
+    // Is there a known leader
+    pub KnownLeader: Option<bool>,
+
+    // How long did the request take
+    pub RequestTime: Option<Duration>,
+
+    // Is address translation enabled for HTTP responses on this agent
+    pub AddressTranslationEnabled: Option<bool>,
+
+    // CacheHit is true if the result was served from agent-local cache.
+    pub CacheHit: Option<bool>,
+
+    // CacheAge is set if request was ?cached and indicates how stale the cached
+    // response is.
+    pub CacheAge: Option<Duration>,
+
+    // DefaultACLPolicy is used to control the ACL interaction when there is no
+    // defined policy. This can be "allow" which means ACLs are used to
+    // deny-list, or "deny" which means ACLs are allow-lists.
+    pub DefaultACLPolicy: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use async_std::task::block_on;
+    use crate::api;
+    #[test]
+    fn test_service() {
+        let client = api::CLIENT.clone();
+        let c = block_on(client.lock());
+        let health = block_on(c.health());
+        let s = block_on(health.service("test", "", true, None)).unwrap();
+        println!("{:?}", s)
+    }
+
+    #[test]
+    fn test_service_address() {
+        let client = api::CLIENT.clone();
+        let c = block_on(client.lock());
+        let health = block_on(c.health());
+        let s = block_on(health.service_address("test", "", true, None)).unwrap();
+        println!("{:?}", s)
+    }
+}
+
+
+

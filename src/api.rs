@@ -5,6 +5,9 @@ use std::collections::HashMap;
 use surf::http::Method;
 use lazy_static::lazy_static;
 use async_std::sync::{Arc, Mutex};
+use async_std::task::block_on;
+use super::agent::Agent;
+use super::health::Health;
 
 /// Client provides a client to the Consul API
 #[derive(Default, Debug, Copy, Clone)]
@@ -14,6 +17,32 @@ pub struct Client {
     pub config: Config
 }
 
+impl Client {
+    pub async fn set_config(config: Config) {
+        let client = CLIENT.clone();
+        let mut s = block_on(client.lock());
+        s.config = config;
+    }
+
+    pub async fn set_config_address(address: &'static  str) {
+        let client = CLIENT.clone();
+        let mut s = block_on(client.lock());
+        s.config.Address = address;
+    }
+
+    pub async fn agent(self) -> Agent {
+        let mut a = Agent::default();
+        a.c = Some(self);
+        a
+    }
+
+    pub async fn health(self) -> Health {
+        let mut a = Health::default();
+        a.c = Some(self);
+        a
+    }
+}
+
 lazy_static! {
     pub static ref CLIENT: Arc<Mutex<Client>> = {
         let mut client = Client::default();
@@ -21,6 +50,8 @@ lazy_static! {
         Arc::new(Mutex::new(client))
     };
 }
+
+
 
 /// Config is used to configure the creation of a client
 #[derive(Default, Debug, Copy, Clone)]
@@ -62,14 +93,6 @@ pub struct Config {
     pub Namespace: &'static str,
 
     pub TLSConfig: TLSConfig,
-}
-
-impl Config {
-    pub fn new(address: &'static str) -> Config {
-        let mut conf = Config::default();
-        conf.Address = address;
-        conf
-    }
 }
 
 /// TLSConfig is used to generate a TLSClientConfig that's useful for talking to
@@ -144,6 +167,7 @@ impl Client {
 
         Ok(req)
     }
+
 }
 
 /// QueryOptions are used to parameterize a query

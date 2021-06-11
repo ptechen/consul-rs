@@ -10,8 +10,8 @@ pub struct Node {
     pub Datacenter: Option<String>,
     pub TaggedAddresses: Option<HashMap<String, String>>,
     pub Meta: Option<HashMap<String, String>>,
-    pub CreateIndex: u64,
-    pub ModifyIndex: u64,
+    pub CreateIndex: Option<u64>,
+    pub ModifyIndex: Option<u64>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
