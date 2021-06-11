@@ -4,7 +4,7 @@ use surf;
 use std::collections::HashMap;
 use surf::http::Method;
 use lazy_static::lazy_static;
-use async_std::sync::{Arc, Mutex};
+use async_std::sync::{Arc, RwLock};
 use async_std::task::block_on;
 use super::agent::Agent;
 use super::health::Health;
@@ -20,13 +20,13 @@ pub struct Client {
 impl Client {
     pub async fn set_config(config: Config) {
         let client = CLIENT.clone();
-        let mut s = block_on(client.lock());
+        let mut s = block_on(client.write());
         s.config = config;
     }
 
     pub async fn set_config_address(address: &'static  str) {
         let client = CLIENT.clone();
-        let mut s = block_on(client.lock());
+        let mut s = block_on(client.write());
         s.config.Address = address;
     }
 
@@ -44,10 +44,10 @@ impl Client {
 }
 
 lazy_static! {
-    pub static ref CLIENT: Arc<Mutex<Client>> = {
+    pub static ref CLIENT: Arc<RwLock<Client>> = {
         let mut client = Client::default();
         client.config.Address = "http://0.0.0.0:8500";
-        Arc::new(Mutex::new(client))
+        Arc::new(RwLock::new(client))
     };
 }
 

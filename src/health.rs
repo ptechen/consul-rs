@@ -4,9 +4,10 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::time::Duration;
 use regex::Regex;
-use async_std::sync::Arc;
+use async_std::sync::{Arc, RwLock};
 use surf::http::Method;
 use surf::{Error, StatusCode};
+use async_std::task::block_on;
 use super::catalog;
 use super::api;
 use super::agent;
@@ -62,6 +63,15 @@ lazy_static!(
         Arc::new(String::from("_service_maintenance:"))
     };
 );
+
+lazy_static! {
+    pub static ref HEALTH: Arc<RwLock<Health>> = {
+        let client = api::CLIENT.clone();
+        let lock = block_on(client.read());
+        let health = block_on(lock.health());
+        Arc::new(RwLock::new(health))
+    };
+}
 
 /// HealthCheck is used to represent a single check
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -200,6 +210,15 @@ pub struct Passing {
 }
 
 impl Health {
+    pub async fn reload_client() {
+        let client = api::CLIENT.clone();
+        let client = client.read().await;
+        let s = client.health().await;
+        let health = HEALTH.clone();
+        let mut health = health.write().await;
+        *health = s;
+    }
+
     pub async fn service(&self, service: &str, tag: &str, passing_only: bool, q: Option<api::QueryOptions>)
                          -> surf::Result<Vec<ServiceEntry>> {
         let mut tags = vec![];
@@ -311,11 +330,13 @@ pub struct QueryMeta {
 #[cfg(test)]
 mod tests {
     use async_std::task::block_on;
+    use super::Health;
     use crate::api;
+
     #[test]
     fn test_service() {
         let client = api::CLIENT.clone();
-        let c = block_on(client.lock());
+        let c = block_on(client.read());
         let health = block_on(c.health());
         let s = block_on(health.service("test", "", true, None)).unwrap();
         println!("{:?}", s)
@@ -323,8 +344,10 @@ mod tests {
 
     #[test]
     fn test_service_address() {
+        block_on(api::Client::set_config_address("http://0.0.0.0:8500"));
+        block_on(Health::reload_client());
         let client = api::CLIENT.clone();
-        let c = block_on(client.lock());
+        let c = block_on(client.read());
         let health = block_on(c.health());
         let s = block_on(health.service_address("test", "", true, None)).unwrap();
         println!("{:?}", s)

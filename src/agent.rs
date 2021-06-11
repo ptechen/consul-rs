@@ -2,7 +2,7 @@ use serde_derive::{Serialize, Deserialize};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use serde_json::{Value, Map};
-use async_std::sync::{Arc, Mutex};
+use async_std::sync::{Arc, RwLock};
 use surf::{Error, StatusCode};
 use surf::http::Method;
 use async_std::task::block_on;
@@ -431,11 +431,11 @@ pub struct Agent {
 }
 
 lazy_static! {
-    pub static ref AGENT: Arc<Mutex<Agent>> = {
+    pub static ref AGENT: Arc<RwLock<Agent>> = {
         let client = api::CLIENT.clone();
-        let lock = block_on(client.lock());
+        let lock = block_on(client.read());
         let agent = block_on(lock.agent());
-        Arc::new(Mutex::new(agent))
+        Arc::new(RwLock::new(agent))
     };
 }
 
@@ -485,16 +485,16 @@ pub struct SampledValue {
 
 impl Agent {
     pub async fn reload_client(){
-        let agent = AGENT.clone();
-        let mut agent = agent.lock().await;
         let client = api::CLIENT.clone();
-        let client = client.lock().await;
+        let client = client.read().await;
         let s = client.agent().await;
+        let agent = AGENT.clone();
+        let mut agent = agent.write().await;
         *agent = s;
     }
 
     /// my_self is used to query the agent we are speaking to for information about itself
-    pub async fn my_self(self) -> surf::Result<Map<String, Value>> {
+    pub async fn my_self(&self) -> surf::Result<Map<String, Value>> {
         if self.c.is_some() {
             let client = self.c.unwrap();
             let req = client.new_request(Method::Get,
@@ -511,7 +511,7 @@ impl Agent {
     /// host is used to retrieve information about the host the
     /// agent is running on such as CPU, memory, and disk. Requires
     /// a operator:read ACL token.
-    pub async fn host(self) -> surf::Result<HashMap<String, Value>> {
+    pub async fn host(&self) -> surf::Result<HashMap<String, Value>> {
         let client = self.c.unwrap();
         let req = client.new_request(Method::Get,
                                      "/v1/agent/host".to_string()).await?;
@@ -523,7 +523,7 @@ impl Agent {
 
     /// metrics is used to query the agent we are speaking to for
     /// its current internal metric data
-    pub async fn metrics(self) -> surf::Result<MetricsInfo> {
+    pub async fn metrics(&self) -> surf::Result<MetricsInfo> {
         if self.c.is_some() {
             let client = self.c.unwrap();
             let req = client.new_request(Method::Get,
@@ -538,7 +538,7 @@ impl Agent {
     }
 
     /// reload triggers a configuration reload for the agent we are connected to.
-    pub async fn reload(self) -> surf::Result<()> {
+    pub async fn reload(&self) -> surf::Result<()> {
         if self.c.is_some() {
             let client = self.c.unwrap();
             let req = client.new_request(Method::Put,
@@ -551,7 +551,7 @@ impl Agent {
         }
     }
 
-    async fn node(self) -> surf::Result<String> {
+    async fn node(&self) -> surf::Result<String> {
         let info = self.my_self().await?;
         let config = info.get("Config").expect("Config key is not exist");
         let name = config.get("NodeName").expect("node name is not exist");
@@ -560,7 +560,7 @@ impl Agent {
     }
 
     /// node_name is used to get the node name of the agent
-    pub async fn node_name(self) -> surf::Result<String> {
+    pub async fn node_name(&self) -> surf::Result<String> {
         if self.nodeName.is_some() {
             let node_name = self.nodeName.unwrap();
             if node_name != "" {
@@ -582,18 +582,18 @@ impl Agent {
     /// use consul_rs::api;
     /// use consul_rs::agent;
     /// let lock = agent::AGENT.clone();
-    /// let agent = block_on(lock.lock());
+    /// let agent = block_on(lock.read());
     /// let res = block_on(agent.checks()).unwrap();
     /// println!("{:?}",res);
     /// ```
-    pub async fn checks(self) -> surf::Result<HashMap<String, AgentCheck>> {
+    pub async fn checks(&self) -> surf::Result<HashMap<String, AgentCheck>> {
         let val = self.checks_with_filter(Filter::default()).await?;
         Ok(val)
     }
 
     /// checks_with_filter returns a subset of the locally registered checks that match
     /// the given filter expression
-    pub async fn checks_with_filter(self, filter: Filter) -> surf::Result<HashMap<String, AgentCheck>> {
+    pub async fn checks_with_filter(&self, filter: Filter) -> surf::Result<HashMap<String, AgentCheck>> {
         let val = self.checks_with_filter_opts(filter,
                                                None).await?;
         Ok(val)
@@ -601,7 +601,7 @@ impl Agent {
 
     /// checks_with_filter_opts returns a subset of the locally registered checks that match
     /// the given filter expression and QueryOptions.
-    pub async fn checks_with_filter_opts(self,
+    pub async fn checks_with_filter_opts(&self,
                                          filter: Filter,
                                          opts: Option<api::QueryOptions>) -> surf::Result<HashMap<String, AgentCheck>> {
         if self.c.is_some() {
@@ -630,23 +630,23 @@ impl Agent {
     /// use async_std::task::block_on;
     /// use consul_rs;
     /// let lock = consul_rs::agent::AGENT.clone();
-    /// let agent = block_on(lock.lock());
+    /// let agent = block_on(lock.read());
     /// let res = block_on(agent.services()).unwrap();
     /// println!("{:?}", res);
     /// ```
-    pub async fn services(self) -> surf::Result<HashMap<String, AgentService>> {
+    pub async fn services(&self) -> surf::Result<HashMap<String, AgentService>> {
         return self.services_with_filter(Filter::default()).await;
     }
 
     /// services_with_filter returns a subset of the locally registered services that match
     /// the given filter expression
-    pub async fn services_with_filter(self, filter: Filter) -> surf::Result<HashMap<String, AgentService>> {
+    pub async fn services_with_filter(&self, filter: Filter) -> surf::Result<HashMap<String, AgentService>> {
         return self.services_with_filter_opts(filter, None).await;
     }
 
     /// services_with_filter_opts returns a subset of the locally registered services that match
     /// the given filter expression and QueryOptions.
-    pub async fn services_with_filter_opts(self, filter: Filter, opts: Option<api::QueryOptions>) -> surf::Result<HashMap<String, AgentService>> {
+    pub async fn services_with_filter_opts(&self, filter: Filter, opts: Option<api::QueryOptions>) -> surf::Result<HashMap<String, AgentService>> {
         if self.c.is_some() {
             let client = self.c.unwrap();
             let mut req = client.new_request(Method::Get,
@@ -673,7 +673,7 @@ impl Agent {
     /// use async_std::task::block_on;
     /// use consul_rs;
     /// let lock = consul_rs::agent::AGENT.clone();
-    /// let agent = block_on(lock.lock());
+    /// let agent = block_on(lock.read());
     /// let mut service = consul_rs::agent::AgentServiceRegistration::default();
     /// service.ID = Some("10".to_string());
     /// service.Name = Some("test".to_string());
@@ -684,7 +684,7 @@ impl Agent {
     /// let status_code = block_on(agent.service_register_opts(service, opts)).unwrap();
     /// assert_eq!(surf::StatusCode::Ok, status_code)
     /// ```
-    pub async fn service_register(self, service: AgentServiceRegistration) -> surf::Result<StatusCode> {
+    pub async fn service_register(&self, service: AgentServiceRegistration) -> surf::Result<StatusCode> {
         let opts = ServiceRegisterOpts::default();
         let status = self.service_register_self(service, opts).await?;
         Ok(status)
@@ -696,7 +696,7 @@ impl Agent {
     /// use async_std::task::block_on;
     /// use consul_rs;
     /// let lock = consul_rs::agent::AGENT.clone();
-    /// let agent = block_on(lock.lock());
+    /// let agent = block_on(lock.read());
     /// let mut service = consul_rs::agent::AgentServiceRegistration::default();
     /// service.ID = Some("10".to_string());
     /// service.Name = Some("test".to_string());
@@ -707,12 +707,12 @@ impl Agent {
     /// let status_code = block_on(agent.service_register_opts(service, opts)).unwrap();
     /// assert_eq!(surf::StatusCode::Ok, status_code)
     /// ```
-    pub async fn service_register_opts(self, service: AgentServiceRegistration, opts: ServiceRegisterOpts) -> surf::Result<StatusCode> {
+    pub async fn service_register_opts(&self, service: AgentServiceRegistration, opts: ServiceRegisterOpts) -> surf::Result<StatusCode> {
         let status = self.service_register_self(service, opts).await?;
         Ok(status)
     }
 
-    async fn service_register_self(self, service: AgentServiceRegistration,
+    async fn service_register_self(&self, service: AgentServiceRegistration,
                                    opts: ServiceRegisterOpts) -> surf::Result<StatusCode> {
         if self.c.is_some() {
             let client = self.c.unwrap();
@@ -737,11 +737,11 @@ impl Agent {
     /// use async_std::task::block_on;
     /// use consul_rs::api;
     /// let lock = consul_rs::agent::AGENT.clone();
-    /// let agent = block_on(lock.lock());
+    /// let agent = block_on(lock.read());
     /// let status_code = block_on(agent.service_deregister("10".to_string())).unwrap();
     /// assert_eq!(surf::StatusCode::Ok, status_code)
     /// ```
-    pub async fn service_deregister(self, service_id: String) -> surf::Result<StatusCode> {
+    pub async fn service_deregister(&self, service_id: String) -> surf::Result<StatusCode> {
         if self.c.is_some() {
             let client = self.c.unwrap();
             let req = client.new_request(Method::Put,
@@ -763,12 +763,12 @@ impl Agent {
     /// block_on(consul_rs::api::Client::set_config_address("http://0.0.0.0:8500"));
     /// block_on(consul_rs::agent::Agent::reload_client());
     /// let lock = consul_rs::agent::AGENT.clone();
-    /// let agent = block_on(lock.lock());
+    /// let agent = block_on(lock.read());
     /// let opts = consul_rs::api::QueryOptions::default();
     /// let status_code = block_on(agent.service_deregister_opts("10".to_string(), opts)).unwrap();
     /// assert_eq!(surf::StatusCode::Ok, status_code)
     /// ```
-    pub async fn service_deregister_opts(self, service_id: String, opts: api::QueryOptions) -> surf::Result<StatusCode> {
+    pub async fn service_deregister_opts(&self, service_id: String, opts: api::QueryOptions) -> surf::Result<StatusCode> {
         if self.c.is_some() {
             let client = self.c.unwrap();
             let mut req = client.new_request(Method::Put,
@@ -786,13 +786,14 @@ impl Agent {
 #[cfg(test)]
 mod tests {
     use crate::agent;
+    use crate::api;
     use async_std::task::block_on;
     #[test]
     fn test_my_self() {
-        // block_on(api::Client::set_config_address("http://0.0.0.0:8500"));
-        // block_on(Agent::reload_client());
+        block_on(api::Client::set_config_address("http://0.0.0.0:8500"));
+        block_on(agent::Agent::reload_client());
         let lock = agent::AGENT.clone();
-        let agent = block_on(lock.lock());
+        let agent = block_on(lock.read());
         let s = block_on(agent.my_self()).unwrap();
         println!("{:?}", s)
     }
@@ -800,7 +801,7 @@ mod tests {
     #[test]
     fn test_host() {
         let lock = agent::AGENT.clone();
-        let agent = block_on(lock.lock());
+        let agent = block_on(lock.read());
         let s = block_on(agent.host()).unwrap();
         println!("{:?}", s)
     }
@@ -810,7 +811,7 @@ mod tests {
         // block_on(api::Client::set_config_address("http://0.0.0.0:8500"));
         // block_on(Agent::reload_client());
         let lock = agent::AGENT.clone();
-        let agent = block_on(lock.lock());
+        let agent = block_on(lock.read());
         let s = block_on(agent.checks()).unwrap();
         println!("{:#?}", s);
     }
@@ -818,7 +819,7 @@ mod tests {
     #[test]
     fn test_services() {
         let lock = agent::AGENT.clone();
-        let agent = block_on(lock.lock());
+        let agent = block_on(lock.read());
         let res = block_on(agent.services()).unwrap();
         println!("{:?}", res);
     }
@@ -833,7 +834,7 @@ mod tests {
         let mut opts = agent::ServiceRegisterOpts::default();
         opts.ReplaceExistingChecks = true;
         let lock = agent::AGENT.clone();
-        let agent = block_on(lock.lock());
+        let agent = block_on(lock.read());
         let s = block_on(agent.service_register_opts(service, opts)).unwrap();
         println!("{}", s)
     }
@@ -841,7 +842,7 @@ mod tests {
     #[test]
     fn test_service_deregister() {
         let lock = agent::AGENT.clone();
-        let agent = block_on(lock.lock());
+        let agent = block_on(lock.read());
         let s = block_on(agent.service_deregister("10".to_string())).unwrap();
         println!("{}", s)
     }
