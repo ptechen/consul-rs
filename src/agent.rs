@@ -790,8 +790,8 @@ mod tests {
     use async_std::task::block_on;
     #[test]
     fn test_my_self() {
-        block_on(api::Client::set_config_address("http://0.0.0.0:8500"));
-        block_on(agent::Agent::reload_client());
+        // block_on(api::Client::set_config_address("http://0.0.0.0:8500"));
+        // block_on(agent::Agent::reload_client());
         let lock = agent::AGENT.clone();
         let agent = block_on(lock.read());
         let s = block_on(agent.my_self()).unwrap();

@@ -209,6 +209,11 @@ pub struct Passing {
     pub passing: String,
 }
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct ServiceAddress {
+    pub address: Vec<String>,
+}
+
 impl Health {
     pub async fn reload_client() {
         let client = api::CLIENT.clone();
@@ -270,7 +275,7 @@ impl Health {
     }
 
     pub async fn service_address(&self, service: &str, tag: &str, passing_only: bool, q: Option<api::QueryOptions>)
-                                 -> surf::Result<Vec<String>> {
+                                 -> surf::Result<ServiceAddress> {
         let entry = self.service(service, tag, passing_only, q).await?;
         let mut service_addresses = vec![];
         for val in entry.iter() {
@@ -284,7 +289,8 @@ impl Health {
                 };
             };
         };
-        Ok(service_addresses)
+        let address = ServiceAddress{address: service_addresses};
+        Ok(address)
     }
 }
 
@@ -349,8 +355,10 @@ mod tests {
         let client = api::CLIENT.clone();
         let c = block_on(client.read());
         let health = block_on(c.health());
-        let s = block_on(health.service_address("test", "", true, None)).unwrap();
-        println!("{:?}", s)
+        let s = block_on(health.service_address("test", "", true, None));
+        if s.is_ok() {
+            println!("{:?}", s)
+        }
     }
 }
 
