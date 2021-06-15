@@ -786,7 +786,6 @@ impl Agent {
 #[cfg(test)]
 mod tests {
     use crate::agent;
-    use crate::api;
     use async_std::task::block_on;
     #[test]
     fn test_my_self() {

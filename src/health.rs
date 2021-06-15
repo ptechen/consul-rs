@@ -71,6 +71,11 @@ lazy_static! {
         let health = block_on(lock.health());
         Arc::new(RwLock::new(health))
     };
+
+    pub static ref SERVICES_ADDRESS: Arc<RwLock<HashMap<String, ServiceAddress>>> = {
+        let services_address:HashMap<String, ServiceAddress> = HashMap::new();
+        Arc::new(RwLock::new(services_address))
+    };
 }
 
 /// HealthCheck is used to represent a single check
@@ -209,7 +214,7 @@ pub struct Passing {
     pub passing: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct ServiceAddress {
     pub address: Vec<String>,
 }
@@ -276,21 +281,31 @@ impl Health {
 
     pub async fn service_address(&self, service: &str, tag: &str, passing_only: bool, q: Option<api::QueryOptions>)
                                  -> surf::Result<ServiceAddress> {
-        let entry = self.service(service, tag, passing_only, q).await?;
-        let mut service_addresses = vec![];
-        for val in entry.iter() {
-            if val.Service.is_some() {
-                let v = val.Service.as_ref().unwrap();
-                if v.Address.is_some() && v.Port.is_some() {
-                    let address = v.Address.as_ref().unwrap();
-                    let port = v.Port.as_ref().unwrap();
-                    let address = format!("{}:{}", address, port);
-                    service_addresses.push(address);
+        let addresses_clone =  SERVICES_ADDRESS.clone();
+        let addresses_read = addresses_clone.read().await;
+        let key = format!("{}{}", service, tag);
+        let addresses= addresses_read.get(&key);
+        if addresses.is_some() {
+            let addresses = addresses.unwrap();
+            Ok(addresses.clone())
+        } else {
+            let entry = self.service(service, tag, passing_only, q).await?;
+            let mut addresses = ServiceAddress::default();
+            for val in entry.iter() {
+                if val.Service.is_some() {
+                    let v = val.Service.as_ref().unwrap();
+                    if v.Address.is_some() && v.Port.is_some() {
+                        let address = v.Address.as_ref().unwrap();
+                        let port = v.Port.as_ref().unwrap();
+                        let address = format!("{}:{}", address, port);
+                        addresses.address.push(address);
+                    };
                 };
             };
-        };
-        let address = ServiceAddress{address: service_addresses};
-        Ok(address)
+            let mut addresses_write = addresses_clone.write().await;
+            addresses_write.insert(key, addresses.to_owned());
+            Ok(addresses)
+        }
     }
 }
 
