@@ -8,9 +8,11 @@ use async_std::sync::{Arc, RwLock};
 use surf::http::Method;
 use surf::{Error, StatusCode};
 use async_std::task::block_on;
+use rand;
 use super::catalog;
 use super::api;
 use super::agent;
+use rand::Rng;
 
 lazy_static!(
     /// HealthAny is special, and is used as a wild card, not as a specific state.
@@ -217,6 +219,19 @@ pub struct Passing {
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct ServiceAddress {
     pub address: Vec<String>,
+}
+
+impl ServiceAddress {
+    pub async fn rand_policy(&self) -> String {
+        let range = self.address.len();
+        if range == 0 {
+            return String::new()
+        };
+        let mut r = rand::thread_rng();
+        let idx:usize = r.gen_range(0..range);
+        let address = self.address.get(idx).unwrap();
+        String::from(address)
+    }
 }
 
 impl Health {
