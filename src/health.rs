@@ -225,10 +225,10 @@ impl ServiceAddress {
     pub async fn rand_policy(&self) -> String {
         let range = self.address.len();
         if range == 0 {
-            return String::new()
+            return String::new();
         };
         let mut r = rand::thread_rng();
-        let idx:usize = r.gen_range(0..range);
+        let idx: usize = r.gen_range(0..range);
         let address = self.address.get(idx).unwrap();
         String::from(address)
     }
@@ -296,31 +296,34 @@ impl Health {
 
     pub async fn service_address(&self, service: &str, tag: &str, passing_only: bool, q: Option<api::QueryOptions>)
                                  -> surf::Result<ServiceAddress> {
-        let addresses_clone =  SERVICES_ADDRESS.clone();
-        let addresses_read = addresses_clone.read().await;
         let key = format!("{}{}", service, tag);
-        let addresses= addresses_read.get(&key);
-        if addresses.is_some() {
-            let addresses = addresses.unwrap();
-            Ok(addresses.clone())
-        } else {
-            let entry = self.service(service, tag, passing_only, q).await?;
-            let mut addresses = ServiceAddress::default();
-            for val in entry.iter() {
-                if val.Service.is_some() {
-                    let v = val.Service.as_ref().unwrap();
-                    if v.Address.is_some() && v.Port.is_some() {
-                        let address = v.Address.as_ref().unwrap();
-                        let port = v.Port.as_ref().unwrap();
-                        let address = format!("{}:{}", address, port);
-                        addresses.address.push(address);
-                    };
+        let addresses_clone = SERVICES_ADDRESS.clone();
+        {
+            let addresses_read = addresses_clone.read().await;
+            let ok = addresses_read.contains_key(&key);
+            if ok {
+                let addresses = addresses_read.get(&key).unwrap();
+                return Ok(addresses.clone());
+            };
+        };
+
+        let entry = self.service(service, tag, passing_only, q).await?;
+        let mut service_addresses = vec![];
+        for val in entry.iter() {
+            if val.Service.is_some() {
+                let v = val.Service.as_ref().unwrap();
+                if v.Address.is_some() && v.Port.is_some() {
+                    let address = v.Address.as_ref().unwrap();
+                    let port = v.Port.as_ref().unwrap();
+                    let address = format!("{}:{}", address, port);
+                    service_addresses.push(address);
                 };
             };
-            let mut addresses_write = addresses_clone.write().await;
-            addresses_write.insert(key, addresses.to_owned());
-            Ok(addresses)
-        }
+        };
+        let service_addresses = ServiceAddress { address: service_addresses };
+        let mut addresses_write = addresses_clone.write().await;
+        addresses_write.insert(key, service_addresses.to_owned());
+        Ok(service_addresses)
     }
 }
 
