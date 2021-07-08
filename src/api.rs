@@ -426,7 +426,7 @@ pub struct QueryOptions {
     /// NodeMeta is used to filter results by nodes with the given
     /// metadata key/value pairs. Currently, only one key/value pair can
     /// be provided for filtering.
-    // pub NodeMeta: HashMap<String, String>,
+    pub NodeMeta: Option<HashMap<String, String>>,
 
     /// RelayFactor is used in keyring operations to cause responses to be
     /// relayed back to the sender through N other random nodes. Must be
