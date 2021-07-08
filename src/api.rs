@@ -1,7 +1,6 @@
 use super::agent::{AgentServiceRegistration, ServiceRegisterOpts};
 use super::health::{WaitPassing, ServiceAddress, ServiceEntry, Tag};
 use super::watch::WatchService;
-use super::ConsulTrait;
 use async_std::sync::{Arc, RwLock};
 use lazy_static::lazy_static;
 use serde_derive::{Deserialize, Serialize};
@@ -10,7 +9,6 @@ use std::time;
 use surf;
 use surf::http::Method;
 use surf::{Error, StatusCode};
-use async_trait::async_trait;
 use rand::Rng;
 use crate::health::Index;
 
@@ -42,9 +40,8 @@ impl Default for ConsulConfig {
     }
 }
 
-#[async_trait]
-impl ConsulTrait for ConsulConfig {
-    async fn new_request(&self, method: Method, path: String) -> surf::Result<surf::Request> {
+impl ConsulConfig {
+    pub async fn new_request(&self, method: Method, path: String) -> surf::Result<surf::Request> {
         let config = self.config.as_ref().expect("consul config is empty");
         let address = config.address.as_ref().expect("consul config address is empty");
         let url = format!("{}{}", address, path);
@@ -81,7 +78,6 @@ impl ConsulTrait for ConsulConfig {
     /// ```
     /// use consul_rs::api::CONSUL_CONFIG;
     /// use async_std::task::block_on;
-    /// use consul_rs::ConsulTrait;
     /// use consul_rs::agent::AgentServiceRegistration;
     /// let clone_consul = CONSUL_CONFIG.clone();
     /// let consul = block_on(clone_consul.read());
@@ -93,7 +89,7 @@ impl ConsulTrait for ConsulConfig {
     /// let s = block_on(consul.service_register(&service)).unwrap();
     /// println!("{}", s);
     /// ```
-    async fn service_register(
+    pub async fn service_register(
         &self,
         service: &AgentServiceRegistration,
     ) -> surf::Result<StatusCode> {
@@ -102,7 +98,7 @@ impl ConsulTrait for ConsulConfig {
         Ok(status)
     }
 
-    async fn service_register_opts(
+    pub async fn service_register_opts(
         &self,
         service: &AgentServiceRegistration,
         opts: &ServiceRegisterOpts,
@@ -111,7 +107,7 @@ impl ConsulTrait for ConsulConfig {
         Ok(status)
     }
 
-    async fn service_register_self(
+    pub async fn service_register_self(
         &self,
         service: &AgentServiceRegistration,
         opts: &ServiceRegisterOpts,
@@ -146,7 +142,7 @@ impl ConsulTrait for ConsulConfig {
     // let s = block_on(consul.service_deregister(service_id)).unwrap();
     // println!("{}", s);
     // ```
-    async fn service_deregister(&self, service_id: String) -> surf::Result<StatusCode> {
+    pub async fn service_deregister(&self, service_id: String) -> surf::Result<StatusCode> {
         if self.config.is_some() {
             let req = self
                 .new_request(
@@ -162,12 +158,7 @@ impl ConsulTrait for ConsulConfig {
         }
     }
 
-    /// ```
-    ///
-    ///
-    ///
-    /// ```
-    async fn watch_services(&self) -> surf::Result<StatusCode> {
+    pub async fn watch_services(&self) -> surf::Result<StatusCode> {
         if self.watch_services.is_some() {
             loop {
                 let watch_services = self.watch_services.as_ref().unwrap();
@@ -262,7 +253,7 @@ impl ConsulTrait for ConsulConfig {
         Ok((key, service_addresses))
     }
 
-    async fn random_policy(&self, service_name: &str, tag: &str) -> surf::Result<String> {
+    pub async fn random_policy(&self, service_name: &str, tag: &str) -> surf::Result<String> {
         let key = format!("{}{}", service_name, tag);
         let services_addresses = SERVICES_ADDRESS.clone();
         let services_addresses = services_addresses.read().await;
