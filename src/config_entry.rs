@@ -1,23 +1,23 @@
 use lazy_static::lazy_static;
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 pub type ProxyMode = String;
 
 lazy_static!(
     /// ProxyModeDefault represents no specific mode and should
-	/// be used to indicate that a different layer of the configuration
-	/// chain should take precedence
+    /// be used to indicate that a different layer of the configuration
+    /// chain should take precedence
     pub static ref PROXY_MODE_DEFAULT: ProxyMode = {
         String::new()
     };
 
     /// ProxyModeTransparent represents that inbound and outbound application
-	/// traffic is being captured and redirected through the proxy.
+    /// traffic is being captured and redirected through the proxy.
     pub static ref PROXY_MODE_TRANSPARENT: ProxyMode = {
         String::from("transparent")
     };
 
     /// ProxyModeDirect represents that the proxy's listeners must be dialed directly
-	/// by the local application and other proxies.
+    /// by the local application and other proxies.
     pub static ref PROXY_MODE_DIRECT: ProxyMode = {
         String::from("direct")
     };
@@ -75,7 +75,7 @@ pub struct ExposeConfig {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
-pub struct ExposePath  {
+pub struct ExposePath {
     /// ListenerPort defines the port of the proxy's listener for exposed paths.
     pub ListenerPort: Option<usize>,
 

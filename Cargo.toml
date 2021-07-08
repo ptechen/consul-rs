@@ -13,6 +13,7 @@ description = "consul api"
 
 [dependencies]
 async-std = "1.9.0"
+async-trait = "0.1.50"
 http-types = "2.11.1"
 lazy_static = "1.4.0"
 rand = "0.8.3"
