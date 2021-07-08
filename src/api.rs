@@ -158,6 +158,17 @@ impl ConsulConfig {
         }
     }
 
+    /// ```
+    /// use consul_rs::api::CONSUL_CONFIG;
+    /// use async_std::task::block_on;
+    /// use consul_rs::agent::AgentServiceRegistration;
+    /// use consul_rs::watch::WatchService;
+    /// let clone_consul = CONSUL_CONFIG.clone();
+    /// let mut consul = block_on(clone_consul.read());
+    /// consul.watch_services = Some(vec![WatchService{}]);
+    /// let s = block_on(consul.watch_services()).unwrap();
+    /// println!("{}", s);
+    /// ```
     pub async fn watch_services(&self) -> surf::Result<StatusCode> {
         if self.watch_services.is_some() {
             loop {

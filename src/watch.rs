@@ -10,5 +10,5 @@ pub struct WatchService {
     pub tag: Option<String>,
     pub passing_only: Option<bool>,
     pub query: Option<api::QueryOptions>,
-    pub balancer_name: Option<String>
+    pub balancer_name: Option<String>,
 }
