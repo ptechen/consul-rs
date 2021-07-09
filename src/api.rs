@@ -193,7 +193,7 @@ impl ConsulConfig {
         }
     }
 
-    async fn watch_services(&self) -> surf::Result<StatusCode> {
+    pub async fn watch_services(&self) -> surf::Result<StatusCode> {
         if self.watch_services.is_some() {
             loop {
                 let watch_services = self.watch_services.as_ref().unwrap();
