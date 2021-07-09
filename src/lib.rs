@@ -13,4 +13,3 @@ pub mod catalog;
 pub mod config_entry;
 pub mod health;
 pub mod watch;
-

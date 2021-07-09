@@ -1,19 +1,19 @@
 use super::agent::{AgentServiceRegistration, ServiceRegisterOpts};
+use super::health::Index;
 use super::health::{ServiceAddress, ServiceEntry, Tag, WaitPassing};
 use super::watch::WatchService;
-use super::health::Index;
+use async_std::fs::read_to_string;
 use async_std::sync::{Arc, RwLock};
 use lazy_static::lazy_static;
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
+use serde_yaml;
 use std::collections::{HashMap, LinkedList};
 use std::time;
 use surf;
 use surf::http::Method;
 use surf::{Error, StatusCode};
-use serde_yaml;
 use toml;
-use async_std::fs::{read_to_string};
 
 lazy_static! {
     pub static ref CONSUL_CONFIG: Arc<RwLock<ConsulConfig>> = {
@@ -59,7 +59,7 @@ impl ConsulConfig {
         let consul_config = CONSUL_CONFIG.clone();
         let mut consul_config = consul_config.write().await;
         consul_config.config = config.config;
-        consul_config.watch_services= config.watch_services;
+        consul_config.watch_services = config.watch_services;
         Ok(())
     }
 
@@ -179,12 +179,7 @@ impl ConsulConfig {
     pub async fn service_deregister(&self, service_id: String) -> surf::Result<StatusCode> {
         if self.config.is_some() {
             let uri = format!("/v1/agent/service/deregister/{}", service_id);
-            let req = self
-                .new_request(
-                    Method::Put,
-                    &uri,
-                )
-                .await?;
+            let req = self.new_request(Method::Put, &uri).await?;
             let client = surf::Client::new();
             let res = client.send(req).await?;
             Ok(res.status())
@@ -195,18 +190,22 @@ impl ConsulConfig {
 
     pub async fn watch_services(&self) -> surf::Result<StatusCode> {
         if self.watch_services.is_some() {
-            loop {
+            loop{
                 let watch_services = self.watch_services.as_ref().unwrap();
                 let mut service_await = vec![];
 
                 for watch_service in watch_services.iter() {
                     service_await.push(self.get_address(watch_service))
                 }
-                let services_addresses = SERVICES_ADDRESS.clone();
-                let mut services_addresses = services_addresses.write().await;
+                let mut vv = HashMap::new();
                 for v in service_await.into_iter() {
                     let (key, service_address) = v.await?;
-                    services_addresses.insert(key, service_address);
+                    vv.insert(key, service_address);
+                }
+                let services_addresses = SERVICES_ADDRESS.clone();
+                let mut services_addresses = services_addresses.write().await;
+                for (key, service_address) in vv.iter() {
+                    services_addresses.insert(key.to_string(), service_address.to_owned());
                 }
             }
         }
@@ -243,8 +242,11 @@ impl ConsulConfig {
                 let passing = watch_service.passing_only.unwrap();
                 if passing {
                     let config = self.config.as_ref().unwrap();
-                    let wait = config.wait_time.as_ref().unwrap().as_secs();
-                    let wait = format!("{}s", wait);
+                    let mut wait = String::new();
+                    if config.wait_time.is_some() {
+                        let wait_secs = config.wait_time.as_ref().unwrap().as_secs();
+                        wait = format!("{}s", wait_secs);
+                    }
                     let query = WaitPassing {
                         passing: String::from("1"),
                         wait,
@@ -497,7 +499,7 @@ pub struct QueryOptions {
 
 #[cfg(test)]
 mod tests {
-    use crate::health::ServiceAddress;
+    use crate::api::SERVICES_ADDRESS;
 
     #[test]
     fn it_works() {
@@ -505,16 +507,16 @@ mod tests {
     }
 
     pub fn test_watch_services() {
-        use crate::agent::AgentServiceRegistration;
         use crate::api::CONSUL_CONFIG;
         use crate::watch::WatchService;
         use async_std::task::block_on;
         let clone_consul = CONSUL_CONFIG.clone();
         let mut consul = block_on(clone_consul.write());
         let mut service = WatchService::default();
-        service.service_name = String::from("test");
+        service.service_name = String::from("hyat_rust");
+        service.passing_only = Some(true);
         consul.watch_services = Some(vec![service]);
-        consul.watch_services();
-        println!("{:?}", ServiceAddress)
+        let s = block_on(consul.watch_services()).unwrap();
+        println!("{:?}", s)
     }
 }
