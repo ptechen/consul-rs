@@ -233,7 +233,7 @@ impl ConsulConfig {
                 let service_address = service_address.unwrap();
                 query.insert("index", service_address.index.to_string());
             } else {
-                query.insert("index", 0.to_string());
+                query.insert("index", 775.to_string());
             }
 
             if watch_service.passing_only.is_some() {
@@ -252,7 +252,7 @@ impl ConsulConfig {
             };
             req.set_query(&query)?;
             let uri = req.url().to_string();
-            log::info!("{}", uri);
+            log::debug!("{}", uri);
             let client = surf::Client::new();
             let mut res = client.send(req).await?;
             let out: Vec<ServiceEntry> = res.body_json().await?;
@@ -279,7 +279,7 @@ impl ConsulConfig {
                     let address = format!("{}:{}", address, port);
                     service_addresses.push(address.to_owned());
                     service_addresses_link.push_back(address);
-                    index = v.CreateIndex.unwrap();
+                    index = v.ModifyIndex.unwrap();
                 };
             };
         }
