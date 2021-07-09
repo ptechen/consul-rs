@@ -89,10 +89,10 @@ impl ConsulConfig {
         };
 
         if config.wait_time.is_some() {
-            let wait_time = config.wait_time.unwrap();
-            let wait_time_secs = wait_time.as_secs();
-            let wait_time_str = format!("{}s", wait_time_secs);
-            body.insert(String::from("wait"), wait_time_str);
+            let wait = config.wait_time.as_ref().unwrap().to_string();
+            body.insert(String::from("wait"), wait);
+        } else {
+            body.insert(String::from("wait"), String::from("5s"));
         }
 
         if config.token.is_some() {
@@ -244,8 +244,9 @@ impl ConsulConfig {
                     let config = self.config.as_ref().unwrap();
                     let mut wait = String::new();
                     if config.wait_time.is_some() {
-                        let wait_secs = config.wait_time.as_ref().unwrap().as_secs();
-                        wait = format!("{}s", wait_secs);
+                        wait = config.wait_time.as_ref().unwrap().to_string();
+                    } else {
+                        wait = String::from("5s")
                     }
                     let query = WaitPassing {
                         passing: String::from("1"),
@@ -349,7 +350,7 @@ pub struct Config {
 
     /// WaitTime limits how long a Watch will block. If not provided,
     /// the agent default values will be used.
-    pub wait_time: Option<time::Duration>,
+    pub wait_time: Option<String>,
 
     /// Token is used to provide a per-request ACL token
     /// which overrides the agent's default token.
