@@ -162,20 +162,20 @@ impl ConsulConfig {
         }
     }
 
-    // service_deregister is used to register a new service with
-    // the local agent
-    //
-    // ```
-    // use consul_rs::api::CONSUL_CONFIG;
-    // use async_std::task::block_on;
-    // use consul_rs::ConsulTrait;
-    // use consul_rs::agent::AgentServiceRegistration;
-    // let clone_consul = CONSUL_CONFIG.clone();
-    // let consul = block_on(clone_consul.read());
-    // let service_id = String::from("321");
-    // let s = block_on(consul.service_deregister(service_id)).unwrap();
-    // println!("{}", s);
-    // ```
+    /// service_deregister is used to register a new service with
+    /// the local agent
+    ///
+    /// ```
+    /// use consul_rs::api::CONSUL_CONFIG;
+    /// use async_std::task::block_on;
+    /// use consul_rs::ConsulTrait;
+    /// use consul_rs::agent::AgentServiceRegistration;
+    /// let clone_consul = CONSUL_CONFIG.clone();
+    /// let consul = block_on(clone_consul.read());
+    /// let service_id = String::from("321");
+    /// let s = block_on(consul.service_deregister(service_id)).unwrap();
+    /// println!("{}", s);
+    /// ```
     pub async fn service_deregister(&self, service_id: String) -> surf::Result<StatusCode> {
         if self.config.is_some() {
             let uri = format!("/v1/agent/service/deregister/{}", service_id);
@@ -193,7 +193,7 @@ impl ConsulConfig {
         }
     }
 
-    pub async fn watch_services(&self) -> surf::Result<StatusCode> {
+    async fn watch_services(&self) -> surf::Result<StatusCode> {
         if self.watch_services.is_some() {
             loop {
                 let watch_services = self.watch_services.as_ref().unwrap();
