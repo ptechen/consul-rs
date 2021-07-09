@@ -104,22 +104,6 @@ pub struct ServiceEntry {
     pub Checks: Option<HealthChecks>,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub struct Tag {
-    pub tag: String,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub struct Index {
-    pub index: u64,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub struct WaitPassing {
-    pub wait: String,
-    pub passing: String,
-}
-
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct ServiceAddress {
     pub index: u64,

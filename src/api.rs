@@ -1,6 +1,5 @@
 use super::agent::{AgentServiceRegistration, ServiceRegisterOpts};
-use super::health::Index;
-use super::health::{ServiceAddress, ServiceEntry, Tag, WaitPassing};
+use super::health::{ServiceAddress, ServiceEntry};
 use super::watch::WatchService;
 use async_std::fs::read_to_string;
 use async_std::sync::{Arc, RwLock};
@@ -38,6 +37,7 @@ impl Default for ConsulConfig {
     fn default() -> Self {
         let mut config = Config::default();
         config.address = Some(String::from("http://127.0.0.1:8500"));
+        config.datacenter = Some(String::from("dc1"));
         ConsulConfig {
             config: Some(config),
             watch_services: None,
@@ -219,23 +219,21 @@ impl ConsulConfig {
         let path = format!("/v1/health/service/{}", watch_service.service_name);
         if self.config.is_some() {
             let mut req = self.new_request(Method::Get, &path).await?;
-            if watch_service.query.is_some() {
-                let opts = watch_service.query.as_ref().unwrap();
-                req.set_query(opts)?;
-            };
+            let mut query:HashMap<&str, String> = HashMap::new();
             let default = String::new();
             let tag = watch_service.tag.as_ref().unwrap_or(&default);
-            req.set_query(&Tag {
-                tag: String::from(tag),
-            })?;
+            if tag !="" {
+                query.insert("tag", tag.to_string());
+            }
             let services_addresses = SERVICES_ADDRESS.clone();
             let services_addresses = services_addresses.read().await;
             let key = format!("{}{}", watch_service.service_name, tag);
             let service_address = services_addresses.get(&key);
             if service_address.is_some() {
                 let service_address = service_address.unwrap();
-                let index = service_address.index;
-                req.set_query(&Index { index })?;
+                query.insert("index", service_address.index.to_string());
+            } else {
+                query.insert("index", 0.to_string());
             }
 
             if watch_service.passing_only.is_some() {
@@ -248,13 +246,13 @@ impl ConsulConfig {
                     } else {
                         wait = String::from("5s")
                     }
-                    let query = WaitPassing {
-                        passing: String::from("1"),
-                        wait,
-                    };
-                    req.set_query(&query)?;
+                    query.insert("passing", "1".to_string());
+                    query.insert("wait", wait);
                 }
             };
+            req.set_query(&query)?;
+            let uri = req.url().to_string();
+            log::info!("{}", uri);
             let client = surf::Client::new();
             let mut res = client.send(req).await?;
             let out: Vec<ServiceEntry> = res.body_json().await?;
@@ -516,8 +514,8 @@ mod tests {
         let mut service = WatchService::default();
         service.service_name = String::from("hyat_rust");
         service.passing_only = Some(true);
-        consul.watch_services = Some(vec![service]);
-        let s = block_on(consul.watch_services()).unwrap();
-        println!("{:?}", s)
+        // consul.watch_services = Some(vec![service]);
+        let s = block_on(consul.get_address(&service)).unwrap();
+        println!("{:?}", s);
     }
 }
