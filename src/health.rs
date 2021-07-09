@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 use super::agent;
 use super::catalog;
-use async_std::sync::{Arc};
+use async_std::sync::Arc;
 use lazy_static::lazy_static;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, LinkedList};

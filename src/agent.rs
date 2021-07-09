@@ -1,10 +1,10 @@
-use lazy_static::lazy_static;
-use serde_derive::{Deserialize, Serialize};
-use serde_json::{Value};
-use std::collections::HashMap;
 use super::catalog;
 use super::config_entry;
 use super::health;
+use lazy_static::lazy_static;
+use serde_derive::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 
 /// ServiceKind is the kind of service being registered.
 type ServiceKind = String;
