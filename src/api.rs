@@ -242,7 +242,7 @@ impl ConsulConfig {
                 let passing = watch_service.passing_only.unwrap();
                 if passing {
                     let config = self.config.as_ref().unwrap();
-                    let mut wait = String::new();
+                    let wait;
                     if config.wait_time.is_some() {
                         wait = config.wait_time.as_ref().unwrap().to_string();
                     } else {
