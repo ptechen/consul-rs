@@ -46,7 +46,7 @@ impl Default for ConsulConfig {
 }
 
 impl ConsulConfig {
-    pub async fn load_config(&self, path: &str) -> surf::Result<()> {
+    pub async fn load_config(path: &str) -> surf::Result<()> {
         let content = read_to_string(path).await?;
         let mut config = ConsulConfig::default();
 
@@ -233,7 +233,7 @@ impl ConsulConfig {
                 let service_address = service_address.unwrap();
                 query.insert("index", service_address.index.to_string());
             } else {
-                query.insert("index", 775.to_string());
+                query.insert("index", 0.to_string());
             }
 
             if watch_service.passing_only.is_some() {
@@ -498,7 +498,7 @@ pub struct QueryOptions {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::SERVICES_ADDRESS;
+    use crate::api::{SERVICES_ADDRESS, Config};
 
     #[test]
     fn it_works() {
@@ -511,6 +511,10 @@ mod tests {
         use async_std::task::block_on;
         let clone_consul = CONSUL_CONFIG.clone();
         let mut consul = block_on(clone_consul.write());
+        let mut config = Config::default();
+        config.datacenter = Some(String::from("dc1"));
+        config.address = Some(String::from("http://127.0.0.1:8500"));
+        consul.config= Some(config);
         let mut service = WatchService::default();
         service.service_name = String::from("hyat_rust");
         service.passing_only = Some(true);
