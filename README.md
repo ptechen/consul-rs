@@ -10,3 +10,11 @@
       - service_name: hyat_rust
         passing_only: true
         tag: ''
+
+## load config
+    ConsulConfig::load_config("consul.yaml").await?;
+
+## consul watch 
+    let consul_config = CONSUL_CONFIG.clone();
+    let consul_config = consul_config.read().await;
+    consul_config.watch_services().await?;

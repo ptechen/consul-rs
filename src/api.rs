@@ -13,7 +13,7 @@ use surf;
 use surf::http::Method;
 use surf::{Error, StatusCode};
 use toml;
-
+use std::thread;
 lazy_static! {
     pub static ref CONSUL_CONFIG: Arc<RwLock<ConsulConfig>> = {
         let consul_config = ConsulConfig::default();
@@ -190,24 +190,30 @@ impl ConsulConfig {
 
     pub async fn watch_services(&self) -> surf::Result<StatusCode> {
         if self.watch_services.is_some() {
-            loop{
-                let watch_services = self.watch_services.as_ref().unwrap();
-                let mut service_await = vec![];
+            thread::spawn(||{
+                loop{
+                    let watch_services = self.watch_services.as_ref().unwrap();
+                    let mut service_await = vec![];
 
-                for watch_service in watch_services.iter() {
-                    service_await.push(self.get_address(watch_service))
+                    for watch_service in watch_services.iter() {
+                        service_await.push(self.get_address(watch_service))
+                    }
+                    let mut vv = HashMap::new();
+                    for v in service_await.into_iter() {
+                        let (key, service_address) = v.await?;
+                        if key != "" {
+                            vv.insert(key, service_address);
+                        }
+                    }
+                    if vv.len() != 0 {
+                        let services_addresses = SERVICES_ADDRESS.clone();
+                        let mut services_addresses = services_addresses.write().await;
+                        for (key, service_address) in vv.iter() {
+                            services_addresses.insert(key.to_string(), service_address.to_owned());
+                        }
+                    }
                 }
-                let mut vv = HashMap::new();
-                for v in service_await.into_iter() {
-                    let (key, service_address) = v.await?;
-                    vv.insert(key, service_address);
-                }
-                let services_addresses = SERVICES_ADDRESS.clone();
-                let mut services_addresses = services_addresses.write().await;
-                for (key, service_address) in vv.iter() {
-                    services_addresses.insert(key.to_string(), service_address.to_owned());
-                }
-            }
+            })
         }
         Ok(surf::http::StatusCode::Ok)
     }
@@ -215,7 +221,7 @@ impl ConsulConfig {
     async fn health_service(
         &self,
         watch_service: &WatchService,
-    ) -> surf::Result<Vec<ServiceEntry>> {
+    ) -> surf::Result<(u64, Vec<ServiceEntry>)> {
         let path = format!("/v1/health/service/{}", watch_service.service_name);
         if self.config.is_some() {
             let mut req = self.new_request(Method::Get, &path).await?;
@@ -229,12 +235,12 @@ impl ConsulConfig {
             let services_addresses = services_addresses.read().await;
             let key = format!("{}{}", watch_service.service_name, tag);
             let service_address = services_addresses.get(&key);
+            let mut index = 0;
             if service_address.is_some() {
                 let service_address = service_address.unwrap();
-                query.insert("index", service_address.index.to_string());
-            } else {
-                query.insert("index", 0.to_string());
+                index = service_address.index;
             }
+            query.insert("index", index.to_string());
 
             if watch_service.passing_only.is_some() {
                 let passing = watch_service.passing_only.unwrap();
@@ -256,7 +262,7 @@ impl ConsulConfig {
             let client = surf::Client::new();
             let mut res = client.send(req).await?;
             let out: Vec<ServiceEntry> = res.body_json().await?;
-            Ok(out)
+            Ok((index, out))
         } else {
             Err(Error::from_str(StatusCode::BadRequest, "client init err"))
         }
@@ -266,7 +272,7 @@ impl ConsulConfig {
         &self,
         watch_service: &WatchService,
     ) -> surf::Result<(String, ServiceAddress)> {
-        let entry = self.health_service(watch_service).await?;
+        let (cur_index,entry) = self.health_service(watch_service).await?;
         let mut service_addresses = vec![];
         let mut service_addresses_link = LinkedList::new();
         let mut index = 0;
@@ -274,15 +280,21 @@ impl ConsulConfig {
             if val.Service.is_some() {
                 let v = val.Service.as_ref().unwrap();
                 if v.Address.is_some() && v.Port.is_some() {
+                    index = v.ModifyIndex.unwrap();
+                    if index == cur_index {
+                        continue;
+                    };
                     let address = v.Address.as_ref().unwrap();
                     let port = v.Port.as_ref().unwrap();
                     let address = format!("{}:{}", address, port);
                     service_addresses.push(address.to_owned());
                     service_addresses_link.push_back(address);
-                    index = v.ModifyIndex.unwrap();
                 };
             };
-        }
+        };
+        if service_addresses.len() == 0 {
+            return Ok((String::new(), ServiceAddress::default()))
+        };
         let mut tag = "";
         if watch_service.tag.is_some() {
             tag = watch_service.tag.as_ref().unwrap();
