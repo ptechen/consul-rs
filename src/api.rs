@@ -188,14 +188,16 @@ impl ConsulConfig {
         }
     }
 
-    pub async fn watch_services(&self) -> surf::Result<StatusCode> {
-        if self.watch_services.is_some() {
+    pub async fn watch_services() -> surf::Result<()> {
+        let config =  CONSUL_CONFIG.clone();
+        let config = config.read().await;
+        if config.watch_services.is_some() {
             loop {
-                let watch_services = self.watch_services.as_ref().unwrap();
+                let watch_services = config.watch_services.as_ref().unwrap();
                 let mut service_await = vec![];
 
                 for watch_service in watch_services.iter() {
-                    service_await.push(self.get_address(watch_service))
+                    service_await.push(config.get_address(watch_service))
                 }
                 let mut vv = HashMap::new();
                 for v in service_await.into_iter() {
@@ -213,7 +215,7 @@ impl ConsulConfig {
                 }
             }
         }
-        Ok(surf::http::StatusCode::Ok)
+        Ok(())
     }
 
     async fn health_service(
